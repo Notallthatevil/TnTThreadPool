@@ -105,3 +105,36 @@ int main() {
     }
 }
 ```
+
+#### Limitations
+All of the various submit calls can be called with function pointer, lambdas, or even classes/structs with an overloaded call operator. However, the job passed to submit cannot be taken in as a const reference. 
+Doing so limits the ability to use the call operator of a class/struct unless that call operator is also const. Because of this, it was decided that the first parameter to submit "job" should not be const. As a result
+a lambda cannot be constructed in the function call, and instead must be assigned to a variable and that variable then passed in.
+
+```cpp
+#include <TnTThreadPool.h>
+#include <iostream>
+
+struct S {
+    int operator()(int x) { return x * x; }
+};
+
+int main() {
+    TnTThreadPool::ThreadPool tp;
+    
+    int my_int = 10;
+    S s;
+
+    auto value_1 = tp.submitForReturn<int>(s, my_int);
+    value_1.wait();
+    
+    std::cout << value_1.get() << std::endl; // Prints 100.
+
+    auto lambda = [](int y) { return y * y; };
+    auto value_2 = tp.submitForReturn<int>(lambda, 5);
+
+    std::cout << value_2.get() << std::endl; // Prints 25.
+
+    auto value_3 = tp.submitForReturn<int>([](int z) { return z * z; }, 2); // Compiler error: unable to convert lambda to Job&.
+}
+```
