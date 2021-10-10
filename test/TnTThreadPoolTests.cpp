@@ -40,13 +40,13 @@ namespace Concurrency {
    };
 
    TEST(TnTThreadPoolTests, threadPoolDefaultSize) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       ASSERT_EQ(std::thread::hardware_concurrency(), tp.getThreadCount());
    }
 
    TEST(TnTThreadPoolTests, submit_Lambda) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       auto lambda = [] {
          ASSERT_NE(DEFAULT_THREAD_ID, std::this_thread::get_id());
@@ -57,14 +57,14 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submit_Function) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       tp.submit(functionNoArgs);
       tp.finishAllJobs();
    }
 
    TEST(TnTThreadPoolTests, submit_Callable) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       std::thread::id other;
 
@@ -74,7 +74,7 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitWithArgs_Lambda) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       std::thread::id other;
 
@@ -88,7 +88,7 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitWithArgs_Function) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       std::thread::id other;
 
@@ -100,7 +100,7 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitWithArgs_Callable) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       std::thread::id other;
 
@@ -113,7 +113,7 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitWaitable_Lambda) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       auto lambda = [] { std::this_thread::sleep_for(100ms); };
       auto start = std::chrono::high_resolution_clock::now();
@@ -126,7 +126,7 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitWaitable_Function) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       auto start = std::chrono::high_resolution_clock::now();
       auto waitable = tp.submitWaitable(functionWait);
@@ -139,7 +139,7 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitWaitable_Callable) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       CallableWait c;
       auto         start = std::chrono::high_resolution_clock::now();
@@ -153,7 +153,7 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitForReturn_Lambda) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       auto lambda = [] { return std::this_thread::get_id(); };
       auto waitable = tp.submitForReturn<std::thread::id>(lambda);
@@ -165,7 +165,7 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitForReturn_Function) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       auto waitable = tp.submitForReturn<std::thread::id>(functionReturnValue);
 
@@ -176,7 +176,7 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitForReturn_Callable) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       CallableReturnValue c;
       auto                waitable = tp.submitForReturn<std::thread::id>(c);
@@ -188,7 +188,7 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitForReturn_With_Args_Lambda) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       auto value = 125;
 
@@ -202,7 +202,7 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitForReturn_With_Args_Function) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       auto value = 125;
 
@@ -215,7 +215,7 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitForReturn_With_Args_Callable) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       auto value = 125;
 
@@ -230,7 +230,7 @@ namespace Concurrency {
 
    extern std::size_t getThreadCountTest();
    TEST(TnTThreadPoolTests, Get_Thread_Pool_Count_From_Different_File) {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
       tp.setThreadCount(2);
 
       ASSERT_EQ(2, getThreadCountTest());

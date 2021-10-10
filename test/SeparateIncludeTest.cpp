@@ -3,7 +3,7 @@
 
 namespace Concurrency {
    std::size_t getThreadCountTest() {
-      TnTThreadPool::TnTThreadPool tp;
+      TnTThreadPool::ThreadPool tp;
 
       return tp.getThreadCount();
    }

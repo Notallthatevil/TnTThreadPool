@@ -67,9 +67,9 @@ namespace TnTThreadPool {
 
    /// @brief Thread pool object to manage lifetime of global thread pool. All instances of this object submit jobs to the same global thread pool.Creating more then one thread pool 
    /// object safely increments the number of references to the global pool. Once all thread pool objects have been deleted then the global thread pool is destroyed. 
-   struct TnTThreadPool {
+   struct ThreadPool {
       /// @brief Constructs a TnTThreadPool for use and increments the global thread pool ref count.
-      TnTThreadPool() {
+      ThreadPool() {
          ++Details::g_refCount;
          if (Details::g_threadPool.empty()) {
             setThreadCount(std::thread::hardware_concurrency());
@@ -77,10 +77,10 @@ namespace TnTThreadPool {
       };
 
       /// @brief Decrements the global ref count. Once all references have been destroyed then each thread is joined and the pool cleared.
-      ~TnTThreadPool() {
+      ~ThreadPool() {
          --Details::g_refCount;
          if (Details::g_refCount == 0) {
-            std::scoped_lock lock{ Details::g_threadRunLock, Details::g_threadPoolLock };
+            std::scoped_lock lock{ Details::g_threadRunLock };
 
             Details::g_pauseExecution = false;
 
@@ -97,10 +97,10 @@ namespace TnTThreadPool {
             Details::g_threadPool.clear();
          }
       }
-      TnTThreadPool(const TnTThreadPool&) = delete;
-      TnTThreadPool(TnTThreadPool&&) = delete;
-      TnTThreadPool& operator=(const TnTThreadPool&) = delete;
-      TnTThreadPool& operator=(TnTThreadPool&&) = delete;
+      ThreadPool(const ThreadPool&) = delete;
+      ThreadPool(ThreadPool&&) = delete;
+      ThreadPool& operator=(const ThreadPool&) = delete;
+      ThreadPool& operator=(ThreadPool&&) = delete;
 
       /// @brief Submits a job to the thread pool queue for execution.
       /// @tparam Job A callable of some type. I.e. lambda, function, or class/struct with operator() overloaded. 
