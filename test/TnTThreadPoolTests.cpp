@@ -3,8 +3,8 @@
 #include <chrono>
 #include <TnTThreadPool.h>
 
-
 using namespace std::chrono_literals;
+
 namespace Concurrency {
 
    const auto            MAIN_THREAD_ID = std::this_thread::get_id();
@@ -40,84 +40,84 @@ namespace Concurrency {
    };
 
    TEST(TnTThreadPoolTests, threadPoolDefaultSize) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
-      ASSERT_EQ(std::thread::hardware_concurrency(), TnTThreadPool::getThreadCount());
+      ASSERT_EQ(std::thread::hardware_concurrency(), tp.getThreadCount());
    }
 
    TEST(TnTThreadPoolTests, submit_Lambda) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
       auto lambda = [] {
          ASSERT_NE(DEFAULT_THREAD_ID, std::this_thread::get_id());
          ASSERT_NE(MAIN_THREAD_ID, std::this_thread::get_id());
       };
-      TnTThreadPool::submit(lambda);
-      TnTThreadPool::finishAllJobs();
+      tp.submit(lambda);
+      tp.finishAllJobs();
    }
 
    TEST(TnTThreadPoolTests, submit_Function) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
-      TnTThreadPool::submit(functionNoArgs);
-      TnTThreadPool::finishAllJobs();
+      tp.submit(functionNoArgs);
+      tp.finishAllJobs();
    }
 
    TEST(TnTThreadPoolTests, submit_Callable) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
       std::thread::id other;
 
       CallableNoArgs c;
-      TnTThreadPool::submit(c);
-      TnTThreadPool::finishAllJobs();
+      tp.submit(c);
+      tp.finishAllJobs();
    }
 
    TEST(TnTThreadPoolTests, submitWithArgs_Lambda) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
       std::thread::id other;
 
       const auto lambdaWithArgs = [](std::thread::id& o) { o = std::this_thread::get_id(); };
 
-      TnTThreadPool::submit(lambdaWithArgs, other);
+      tp.submit(lambdaWithArgs, other);
 
-      TnTThreadPool::finishAllJobs();
+      tp.finishAllJobs();
       ASSERT_NE(DEFAULT_THREAD_ID, other);
       ASSERT_NE(MAIN_THREAD_ID, other);
    }
 
    TEST(TnTThreadPoolTests, submitWithArgs_Function) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
       std::thread::id other;
 
-      TnTThreadPool::submit(functionWithArgs, other);
+      tp.submit(functionWithArgs, other);
 
-      TnTThreadPool::finishAllJobs();
+      tp.finishAllJobs();
       ASSERT_NE(DEFAULT_THREAD_ID, other);
       ASSERT_NE(MAIN_THREAD_ID, other);
    }
 
    TEST(TnTThreadPoolTests, submitWithArgs_Callable) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
       std::thread::id other;
 
       CallableWithArgs c;
-      TnTThreadPool::submit(c, other);
+      tp.submit(c, other);
 
-      TnTThreadPool::finishAllJobs();
+      tp.finishAllJobs();
       ASSERT_NE(DEFAULT_THREAD_ID, other);
       ASSERT_NE(MAIN_THREAD_ID, other);
    }
 
    TEST(TnTThreadPoolTests, submitWaitable_Lambda) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
       auto lambda = [] { std::this_thread::sleep_for(100ms); };
       auto start = std::chrono::high_resolution_clock::now();
-      auto waitable = TnTThreadPool::submitWaitable(lambda);
+      auto waitable = tp.submitWaitable(lambda);
 
       auto result = waitable.wait_for(5000ms);
       auto end = std::chrono::high_resolution_clock::now();
@@ -126,10 +126,10 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitWaitable_Function) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
       auto start = std::chrono::high_resolution_clock::now();
-      auto waitable = TnTThreadPool::submitWaitable(functionWait);
+      auto waitable = tp.submitWaitable(functionWait);
 
       auto result = waitable.wait_for(5000ms);
       auto end = std::chrono::high_resolution_clock::now();
@@ -139,11 +139,11 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitWaitable_Callable) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
       CallableWait c;
       auto         start = std::chrono::high_resolution_clock::now();
-      auto         waitable = TnTThreadPool::submitWaitable(c);
+      auto         waitable = tp.submitWaitable(c);
 
       auto result = waitable.wait_for(5000ms);
       auto end = std::chrono::high_resolution_clock::now();
@@ -153,10 +153,10 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitForReturn_Lambda) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
       auto lambda = [] { return std::this_thread::get_id(); };
-      auto waitable = TnTThreadPool::submitForReturn<std::thread::id>(lambda);
+      auto waitable = tp.submitForReturn<std::thread::id>(lambda);
 
       auto result = waitable.wait_for(5000ms);
 
@@ -165,9 +165,9 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitForReturn_Function) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
-      auto waitable = TnTThreadPool::submitForReturn<std::thread::id>(functionReturnValue);
+      auto waitable = tp.submitForReturn<std::thread::id>(functionReturnValue);
 
       auto result = waitable.wait_for(5000ms);
 
@@ -176,10 +176,10 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitForReturn_Callable) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
       CallableReturnValue c;
-      auto                waitable = TnTThreadPool::submitForReturn<std::thread::id>(c);
+      auto                waitable = tp.submitForReturn<std::thread::id>(c);
 
       auto result = waitable.wait_for(5000ms);
 
@@ -188,12 +188,12 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitForReturn_With_Args_Lambda) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
       auto value = 125;
 
       auto lambda = [](int x) { return x * x; };
-      auto waitable = TnTThreadPool::submitForReturn<int>(lambda, value);
+      auto waitable = tp.submitForReturn<int>(lambda, value);
 
       auto result = waitable.wait_for(5000ms);
 
@@ -202,11 +202,11 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitForReturn_With_Args_Function) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
       auto value = 125;
 
-      auto waitable = TnTThreadPool::submitForReturn<int>(functionReturnValueWithArgs, value);
+      auto waitable = tp.submitForReturn<int>(functionReturnValueWithArgs, value);
 
       auto result = waitable.wait_for(5000ms);
 
@@ -215,17 +215,27 @@ namespace Concurrency {
    }
 
    TEST(TnTThreadPoolTests, submitForReturn_With_Args_Callable) {
-      TnTThreadPool::resume();
+      TnTThreadPool::TnTThreadPool tp;
 
       auto value = 125;
 
       CallableReturnValueWithArgs c;
-      auto                        waitable = TnTThreadPool::submitForReturn<int>(c, value);
+      auto                        waitable = tp.submitForReturn<int>(c, value);
 
       auto result = waitable.wait_for(5000ms);
 
       ASSERT_NE(std::future_status::timeout, result);
       ASSERT_EQ(value * value, waitable.get());
+   }
+
+   extern std::size_t getThreadCountTest();
+   TEST(TnTThreadPoolTests, Get_Thread_Pool_Count_From_Different_File) {
+      TnTThreadPool::TnTThreadPool tp;
+      tp.setThreadCount(2);
+
+      ASSERT_EQ(2, getThreadCountTest());
+
+      tp.setThreadCount(0);
    }
 
 }   // namespace TEST_NAMESPACE
