@@ -5,6 +5,9 @@
 
 using namespace std::chrono_literals;
 
+#pragma warning(push)
+#pragma warning(disable: 6326) // Potential comparison of a constant with another constant
+
 namespace Concurrency {
 
    const auto            MAIN_THREAD_ID = std::this_thread::get_id();
@@ -239,3 +242,5 @@ namespace Concurrency {
    }
 
 }   // namespace TEST_NAMESPACE
+
+#pragma warning(pop)

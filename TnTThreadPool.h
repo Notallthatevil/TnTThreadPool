@@ -52,10 +52,18 @@ namespace TnTThreadPool {
       inline void executor() {
          while (g_run) {
             if (!g_pauseExecution) {
-               std::scoped_lock lock{ g_threadPoolLock };
-               if (!g_jobs.empty()) {
-                  g_jobs.front()();
-                  g_jobs.pop();
+               std::function<void()> func;
+               {
+                  std::scoped_lock lock{ g_threadPoolLock };
+                  if (!g_jobs.empty()) {
+                     g_jobs.front().swap(func);
+                     g_jobs.pop();
+                  }
+               }
+               if (func) {
+                  func();
+                  std::function<void()> empty;
+                  func.swap(empty);
                }
             }
             else {
