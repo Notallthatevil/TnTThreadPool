@@ -199,11 +199,20 @@ namespace TnTThreadPool {
       inline  std::size_t getThreadCount() { return Details::g_threadPool.size(); }
 
       /// @brief Causes the calling thread to wait here until all jobs in the queue are finished.
-      inline void finishAllJobs() { setThreadCount(getThreadCount()); }
+      inline void finishAllJobs() {
+         while (true) {
+            std::scoped_lock lock{ Details::g_threadPoolLock };
+            if (Details::g_jobs.empty()) {
+               return;
+            }
+            std::this_thread::yield();
+         }
+
+      }
 
       /// @brief Joins all threads in the pool and shuts down further execution.
       inline void shutdown() {
-
+         finishAllJobs();
       }
 
       /// @brief Pauses thread pool execution.

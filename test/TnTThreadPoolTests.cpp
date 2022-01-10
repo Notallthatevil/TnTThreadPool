@@ -241,6 +241,28 @@ namespace Concurrency {
       tp.setThreadCount(0);
    }
 
+   TEST(TnTThreadPoolTests, Submit1000JobsAndWait) {
+      TnTThreadPool::ThreadPool tp;
+
+      std::atomic_int64_t val{ 0 };
+
+      constexpr auto numToRun = 1000;
+
+      auto job = [&val]() {
+         ++val;
+      };
+
+      for (auto i = 0; i < numToRun; ++i) {
+         tp.submit(job);
+      }
+      ASSERT_NE(numToRun, val.load());
+
+      tp.finishAllJobs();
+
+      ASSERT_EQ(numToRun, val.load());
+
+   }
+
 }   // namespace TEST_NAMESPACE
 
 #pragma warning(pop)
