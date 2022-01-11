@@ -35,6 +35,7 @@
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <condition_variable>
 
  /// @brief Simple thread pool implementation. To begin using create a TnTThreadPool object and call one of its submit functions. 
 namespace TnTThreadPool {
@@ -47,23 +48,22 @@ namespace TnTThreadPool {
       inline std::atomic_uint32_t              g_refCount{ 0 };
       inline std::mutex                        g_threadPoolLock;
       inline std::mutex                        g_threadRunLock;
+      inline std::condition_variable           g_cv;
 
 
       inline void executor() {
          while (g_run) {
             if (!g_pauseExecution) {
-               std::function<void()> func;
-               {
-                  std::scoped_lock lock{ g_threadPoolLock };
-                  if (!g_jobs.empty()) {
-                     g_jobs.front().swap(func);
-                     g_jobs.pop();
+               std::scoped_lock lock{ g_threadPoolLock };
+               if (!g_jobs.empty()) {
+                  auto& func = g_jobs.front();
+                  if (func) {
+                     func();
                   }
+                  g_jobs.pop();
                }
-               if (func) {
-                  func();
-                  std::function<void()> empty;
-                  func.swap(empty);
+               else {
+                  g_cv.notify_all();
                }
             }
             else {
@@ -172,7 +172,7 @@ namespace TnTThreadPool {
       /// @brief Causes all queued jobs to be completed and updates the thread pool size to threadCount.
       /// @param threadCount The new thread pool size. If this value is equal to zero or greater then std::thread::hardware_concurrency(), it is defaulted to 
       /// std::thread::hardware_concurrency().
-      inline void setThreadCount(std::uint32_t threadCount) {
+      inline void setThreadCount(std::size_t threadCount) {
 
          if (threadCount > std::thread::hardware_concurrency() || threadCount == 0) {
             threadCount = std::thread::hardware_concurrency();
@@ -180,18 +180,7 @@ namespace TnTThreadPool {
 
          std::scoped_lock lock{ Details::g_threadRunLock };
 
-         Details::g_run = false;
-
-         for (auto& t : Details::g_threadPool) {
-            t.join();
-         }
-
-         Details::g_threadPool.clear();
-
-         Details::g_run = true;
-         for (decltype(threadCount) i = 0; i < threadCount; ++i) {
-            Details::g_threadPool.emplace_back(std::thread(Details::executor));
-         }
+         joinAndInitThreads(threadCount);
       }
 
       /// @brief Returns number of threads in the pool.
@@ -200,14 +189,9 @@ namespace TnTThreadPool {
 
       /// @brief Causes the calling thread to wait here until all jobs in the queue are finished.
       inline void finishAllJobs() {
-         while (true) {
-            std::scoped_lock lock{ Details::g_threadPoolLock };
-            if (Details::g_jobs.empty()) {
-               return;
-            }
-            std::this_thread::yield();
-         }
-
+         std::unique_lock lock{ Details::g_threadRunLock };
+         Details::g_cv.wait(lock);
+         joinAndInitThreads(getThreadCount());
       }
 
       /// @brief Joins all threads in the pool and shuts down further execution.
@@ -225,6 +209,22 @@ namespace TnTThreadPool {
          }
 
          Details::g_pauseExecution = false;
+      }
+
+   private:
+      void joinAndInitThreads(std::size_t threadCount) {
+         Details::g_run = false;
+
+         for (auto& t : Details::g_threadPool) {
+            t.join();
+         }
+
+         Details::g_threadPool.clear();
+
+         Details::g_run = true;
+         for (decltype(threadCount) i = 0; i < threadCount; ++i) {
+            Details::g_threadPool.emplace_back(std::thread(Details::executor));
+         }
       }
    };
 
