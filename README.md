@@ -1,6 +1,6 @@
 # TnTThreadPool
 ___
-[![BuildAndTest](https://github.com/Notallthatevil/TnTThreadPool/actions/workflows/build.yml/badge.svg)](https://github.com/Notallthatevil/TnTThreadPool/actions/workflows/build.yml)
+[![Build](https://github.com/Notallthatevil/TnTThreadPool/actions/workflows/build_cmake.yml/badge.svg)](https://github.com/Notallthatevil/TnTThreadPool/actions/workflows/build_cmake.yml)
 
 
 Very simple, yet efficient and easy to use c++17 thread pool header only library. 
