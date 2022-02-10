@@ -1,4 +1,30 @@
-#pragma once
+#ifndef TNT_THREAD_POOL_H
+#define TNT_THREAD_POOL_H
+/*
+ * Adapted from https://github.com/bshoshany/thread-pool
+ *
+ * MIT License
+ *
+ * Copyright(c) 2021 Nate Tripp
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files(the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions :
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
 #include <vector>
 #include <thread>
@@ -20,16 +46,15 @@ namespace TnTThreadPool {
       static std::atomic_size_t d_runningTasks{ 0 };
       static std::atomic_size_t d_queuedTasks{ 0 };
 
-      static std::once_flag d_initialized;
-
       static std::condition_variable d_cv;
+      static std::once_flag d_initialized;
 
       inline void executor() {
          std::function<void()> currentJob;
          while (d_execute) {
             {
                std::scoped_lock lock{ d_jobQueueMutex };
-               if (!d_queuedTasks) {
+               if (!d_queuedTasks || d_pause) {
                   d_cv.notify_all();
                   std::this_thread::yield();
                }
@@ -48,12 +73,49 @@ namespace TnTThreadPool {
          }
       }
 
+      inline void startThreadsImpl(std::uint32_t threadCount) {
+         d_execute = true;
+         for (auto i = 0u; i < threadCount; ++i) {
+            d_threads.emplace_back(executor);
+         }
+      }
+
+      inline void joinThreadsImpl() {
+         std::call_once(d_initialized, []() {});
+         for (auto& thread : d_threads) {
+            thread.join();
+         }
+         d_threads.clear();
+      }
+
+      inline auto finishAllJobsImpl() {
+         Details::d_execute = true;
+         //Todo test immediate call to this.
+         std::unique_lock lock{ Details::d_jobQueueMutex };
+         Details::d_cv.wait(lock, [] { return Details::d_runningTasks == 0 && Details::d_queuedTasks == 0; });
+         return lock;
+      }
+
+      inline auto shutdownImpl() {
+         Details::d_execute = true;
+         auto lock = Details::finishAllJobsImpl();
+         Details::d_execute = false;
+         lock.unlock();
+         joinThreadsImpl();
+         lock.lock();
+         return lock;
+      }
+
+      inline auto pauseImpl() {
+         Details::d_pause = true;
+         std::unique_lock lock{ Details::d_jobQueueMutex };
+         Details::d_cv.wait(lock, [] {return Details::d_runningTasks == 0; });
+         return lock;
+      }
+
       inline void init() {
          std::call_once(d_initialized, []() {
-            for (auto i = 0u; i < std::thread::hardware_concurrency(); ++i) {
-               d_threads.emplace_back(executor);
-            }
-            d_execute = true;
+            startThreadsImpl(std::thread::hardware_concurrency());
             });
       }
 
@@ -63,16 +125,15 @@ namespace TnTThreadPool {
          ++d_queuedTasks;
          Details::d_jobQueue.emplace(job);
       }
+
    }
 
 
    /// @brief Submits a job to the thread pool queue for execution.
-/// @tparam Job A callable of some type. I.e. lambda, function, or class/struct with operator() overloaded. 
-/// @tparam Args [Optional] Arguments to provide to the job.
-/// @param job The job to execute.
-/// @param args Arguments to provide to the job.
-/// @remarks If providing a lambda, it cannot be initialized in the function parameters. It must be assigned to a variable and then that variable passed in. 
-/// Otherwise, you may get a compiler error indicating that a non-const reference must be an l-value.
+   /// @tparam Job A callable of some type. I.e. lambda, function, or class/struct with operator() overloaded. 
+   /// @tparam Args [Optional] Arguments to provide to the job.
+   /// @param job The job to execute.
+   /// @param args Arguments to provide to the job.
    template<typename Job, typename... Args>
    inline void submit(const Job& job, Args &&...args) {
       Details::init();
@@ -90,8 +151,6 @@ namespace TnTThreadPool {
    /// @tparam Args [Optional] Arguments to provide to the job.
    /// @param job The job to execute.
    /// @param args Arguments to provide to the job.
-   /// @remarks If providing a lambda, it cannot be initialized in the function parameters. It must be assigned to a variable and then that variable passed in. 
-   /// Otherwise, you may get a compiler error indicating that a non-const reference must be an l-value.
    template<typename Job, typename... Args>
    inline void submit(Job& job, Args &&...args) {
       Details::init();
@@ -179,39 +238,57 @@ namespace TnTThreadPool {
       return submitForReturn<void>(job, std::forward<Args>(args)...);
    }
 
+   /// @brief Causes the caller to wait for all currently queued jobs to complete before continuing. 
    inline void finishAllJobs() {
-      Details::init();
-      Details::d_execute = true;
-      std::unique_lock lock{ Details::d_jobQueueMutex };
-      Details::d_cv.wait(lock, [] {return Details::d_runningTasks == 0 && Details::d_queuedTasks == 0; });
-      //}
+      auto _ = Details::finishAllJobsImpl();
    }
 
+   /// @brief Pauses the thread pools execution of queued jobs.
    inline void pause() {
-      Details::d_execute = false;
+      auto _ = Details::pauseImpl();
    }
 
-   inline void setThreadCount(std::size_t newThreadCount) {
-      Details::init();
+   /// @brief Resumes the thread pools job execution.
+   inline void resume() {
+      Details::d_pause = false;
+   }
+
+   /// @brief Completes all jobs in the queue then joins all the threads.
+   inline void shutdown() {
+      auto _ = Details::shutdownImpl();
+   }
+
+   /// @brief Completes all jobs in the queue, joins all the threads, then starts up a set number of threads.
+   /// @param newThreadCount The number of threads to create in the pool.
+   inline void reset(std::size_t newThreadCount = std::thread::hardware_concurrency()) {
+      auto lock = Details::shutdownImpl();
+      Details::startThreadsImpl(newThreadCount);
+   }
+
+   /// @brief Pauses execution of the thread pool, waiting for all in-flight jobs to finish but retaining whats still in the queue. Joins all the threads then spins 
+   /// up new ones before resuming execution.
+   /// @param newThreadCount The number of threads in the thread pool.
+   /// @remarks If newThreadCount is 0, this is equivalent to calling shutdown.
+   inline void setThreadCount(std::uint32_t newThreadCount) {
       if (newThreadCount == 0) {
-         pause();
+         shutdown();
          return;
       }
+      auto lock = Details::pauseImpl();
+      Details::d_execute = false;
+      lock.unlock();
+      Details::joinThreadsImpl();
+      lock.lock();
+      Details::startThreadsImpl(newThreadCount);
+      resume();
    }
 
+   /// @brief Returns the number of threads in the pool.
    inline std::size_t getThreadCount() {
       Details::init();
       std::scoped_lock lock{ Details::d_jobQueueMutex };
       return Details::d_threads.size();
    }
-
-   inline void resume() {
-      if (!Details::d_execute) {
-         Details::d_execute = true;
-      }
-      for (auto& thread : Details::d_threads) {
-         thread = std::thread{ Details::executor };
-      }
-   }
-
 }
+
+#endif

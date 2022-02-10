@@ -5,9 +5,6 @@
 
 using namespace std::chrono_literals;
 
-#pragma warning(push)
-#pragma warning(disable: 6326) // Potential comparison of a constant with another constant
-
 namespace Concurrency {
 
    const auto            MAIN_THREAD_ID = std::this_thread::get_id();
@@ -293,6 +290,105 @@ namespace Concurrency {
       ASSERT_EQ(value * value, waitable.get());
    }
 
+   /* Pause */
+   TEST(Pause, PauseAndResume) {
+      auto lambda = [](int i) {
+         volatile int j = i * i;
+      };
+      TnTThreadPool::finishAllJobs();
+      auto waitable1 = TnTThreadPool::submitWaitable(lambda, 1);
+      auto status1 = waitable1.wait_for(DEFAULT_STALL_TIME * 5);
+
+      ASSERT_NE(std::future_status::timeout, status1);
+
+      TnTThreadPool::pause();
+      auto waitable2 = TnTThreadPool::submitWaitable(lambda, 2);
+      auto statusTimeout = waitable2.wait_for(DEFAULT_STALL_TIME * 5);
+      TnTThreadPool::resume();
+      auto statusNoTimeout = waitable2.wait_for(DEFAULT_STALL_TIME * 5);
+
+      ASSERT_EQ(std::future_status::timeout, statusTimeout) << "Was apparently ready?";
+      ASSERT_NE(std::future_status::timeout, statusNoTimeout) << "Apparently timed out?";
+   }
+
+   /* Reset */
+   TEST(Reset, ResetTo1ThreadThenBackToFull) {
+      std::atomic_int counter = 0;
+      auto iterations = 150;
+      auto lambda = [&counter]() {
+         std::this_thread::sleep_for(DEFAULT_STALL_TIME);
+         counter++;
+      };
+
+      TnTThreadPool::reset(1);
+
+      auto start = std::chrono::high_resolution_clock::now();
+
+      for (auto i = 0; i < iterations; ++i) {
+         TnTThreadPool::submit(lambda);
+      }
+      TnTThreadPool::finishAllJobs();
+
+      auto end = std::chrono::high_resolution_clock::now();
+      ASSERT_EQ(iterations, counter);
+      ASSERT_LT(DEFAULT_STALL_TIME * iterations, end - start);
+      counter = 0;
+
+      TnTThreadPool::reset();
+
+      start = std::chrono::high_resolution_clock::now();
+
+      for (auto i = 0; i < iterations; ++i) {
+         TnTThreadPool::submit(lambda);
+      }
+      TnTThreadPool::finishAllJobs();
+
+      end = std::chrono::high_resolution_clock::now();
+
+      ASSERT_EQ(iterations, counter);
+      ASSERT_GT(DEFAULT_STALL_TIME * iterations, end - start);
+
+   }
+
+   /* SetThreadCount */
+   TEST(SetThreadCount, SetTo1ThenBackToFull) {
+      std::atomic_int counter = 0;
+      auto iterations = 150;
+      auto lambda = [&counter]() {
+         std::this_thread::sleep_for(DEFAULT_STALL_TIME);
+         counter++;
+      };
+
+      TnTThreadPool::setThreadCount(1);
+
+      auto start = std::chrono::high_resolution_clock::now();
+
+      for (auto i = 0; i < iterations; ++i) {
+         TnTThreadPool::submit(lambda);
+      }
+      TnTThreadPool::finishAllJobs();
+
+      auto end = std::chrono::high_resolution_clock::now();
+      ASSERT_EQ(iterations, counter);
+      ASSERT_LT(DEFAULT_STALL_TIME * iterations, end - start);
+      counter = 0;
+
+      TnTThreadPool::reset();
+
+      start = std::chrono::high_resolution_clock::now();
+
+      for (auto i = 0; i < iterations; ++i) {
+         TnTThreadPool::submit(lambda);
+      }
+      TnTThreadPool::finishAllJobs();
+
+      end = std::chrono::high_resolution_clock::now();
+
+      ASSERT_EQ(iterations, counter);
+      ASSERT_GT(DEFAULT_STALL_TIME * iterations, end - start);
+   }
+
+
 
    /* Stress Tests */
    TEST(StressTest, AddLargeNumberOfItems) {
@@ -311,6 +407,32 @@ namespace Concurrency {
       for (auto i = 0; i < iterations; ++i) {
          TnTThreadPool::submit(lambda);
       }
+
+      TnTThreadPool::finishAllJobs();
+
+      ASSERT_EQ(iterations, value);
+   }
+
+   TEST(StressTest, AddLargeNumberOfItems_WithPause) {
+      std::mutex mutex;
+
+      auto iterations = 50000;
+      std::size_t value{ 0 };
+
+      auto lambda = [&mutex, &value] {
+         std::this_thread::yield();
+
+         std::scoped_lock lock{ mutex };
+         value++;
+      };
+
+      for (auto i = 0; i < iterations; ++i) {
+         TnTThreadPool::submit(lambda);
+      }
+
+      TnTThreadPool::pause();
+      std::this_thread::sleep_for(DEFAULT_STALL_TIME * 5);
+      TnTThreadPool::resume();
 
       TnTThreadPool::finishAllJobs();
 
@@ -355,57 +477,4 @@ namespace Concurrency {
          ASSERT_EQ(expectedStr, vec[i]) << " Failed at index " << i;
       }
    }
-
-
-   //EST(TnTThreadPoolTests, Submit1000JobsAndWait) {
-   //  TnTThreadPool::ThreadPool tp;
-   //
-   //  std::atomic_int64_t val{ 0 };
-   //
-   //  constexpr auto numToRun = 1000;
-   //
-   //  auto job = [&val]() {
-   //     ++val;
-   //  };
-   //
-   //  for (auto i = 0; i < numToRun; ++i) {
-   //     tp.submit(job);
-   //  }
-   //  ASSERT_NE(numToRun, val.load());
-   //
-   //  tp.finishAllJobs();
-   //
-   //  ASSERT_EQ(numToRun, val.load());
-   //
-   //
-   //
-   //EST(TnTThreadPoolTests, Submit1000MoreComplexJobsAndWait) {
-   //  TnTThreadPool::ThreadPool tp;
-   //
-   //  struct S {
-   //     std::uint64_t i{ 0 };
-   //  };
-   //
-   //
-   //  std::vector<std::unique_ptr<S>> vec;
-   //
-   //  auto job = [](S* s) {
-   //     s->i = s->i * s->i;
-   //  };
-   //
-   //  for (std::size_t i = 0; i < vec.size(); ++i) {
-   //     vec.emplace_back(new S{ i });
-   //     tp.submit(job, vec[i].get());
-   //  }
-   //
-   //  tp.finishAllJobs();
-   //
-   //  for (std::size_t i = 0; i < vec.size(); ++i) {
-   //     ASSERT_EQ(i * i, vec[i]->i);
-   //  }*/
-   //
-   //
-   // }
 }   // namespace TEST_NAMESPACE
-
-#pragma warning(pop)
