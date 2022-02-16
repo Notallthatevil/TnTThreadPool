@@ -37,17 +37,17 @@ namespace TnTThreadPool {
 
    namespace Details {
 
-      static std::mutex d_jobQueueMutex;
-      static std::vector<std::thread> d_threads;
-      static std::queue<std::function<void()>> d_jobQueue;
-
-      static std::atomic_bool d_execute;
-      static std::atomic_bool d_pause;
-      static std::atomic_size_t d_runningTasks{ 0 };
-      static std::atomic_size_t d_queuedTasks{ 0 };
-
-      static std::condition_variable d_cv;
-      static std::once_flag d_initialized;
+      inline std::mutex d_jobQueueMutex;
+      inline std::vector<std::thread> d_threads;
+      inline std::queue<std::function<void()>> d_jobQueue;
+      
+      inline std::atomic_bool d_execute;
+      inline std::atomic_bool d_pause;
+      inline std::atomic_size_t d_runningTasks{ 0 };
+      inline std::atomic_size_t d_queuedTasks{ 0 };
+      
+      inline std::condition_variable d_cv;
+      inline std::once_flag d_initialized;
 
       inline void executor() {
          std::function<void()> currentJob;
