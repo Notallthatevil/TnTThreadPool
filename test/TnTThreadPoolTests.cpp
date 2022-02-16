@@ -293,7 +293,7 @@ namespace Concurrency {
    /* Pause */
    TEST(Pause, PauseAndResume) {
       auto lambda = [](int i) {
-         volatile int j = i * i;
+         return i * i;
       };
       TnTThreadPool::finishAllJobs();
       auto waitable1 = TnTThreadPool::submitWaitable(lambda, 1);

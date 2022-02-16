@@ -83,7 +83,6 @@ namespace TnTThreadPool {
 
       inline auto finishAllJobsImpl() {
          Details::d_execute = true;
-         //Todo test immediate call to this.
          std::unique_lock lock{ Details::d_jobQueueMutex };
          Details::d_cv.wait(lock, [] { return Details::d_runningTasks == 0 && Details::d_queuedTasks == 0; });
          return lock;
