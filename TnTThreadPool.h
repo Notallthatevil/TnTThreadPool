@@ -32,20 +32,20 @@
 #include <queue>
 #include <future>
 #include <condition_variable>
+#include <cstdlib>
 
 namespace TnTThreadPool {
 
    namespace Details {
-
       inline std::mutex d_jobQueueMutex;
       inline std::vector<std::thread> d_threads;
       inline std::queue<std::function<void()>> d_jobQueue;
-      
+
       inline std::atomic_bool d_execute;
       inline std::atomic_bool d_pause;
       inline std::atomic_size_t d_runningTasks{ 0 };
       inline std::atomic_size_t d_queuedTasks{ 0 };
-      
+
       inline std::condition_variable d_cv;
       inline std::once_flag d_initialized;
 
@@ -70,13 +70,6 @@ namespace TnTThreadPool {
                currentJob = {};
                --d_runningTasks;
             }
-         }
-      }
-
-      inline void startThreadsImpl(std::uint32_t threadCount) {
-         d_execute = true;
-         for (auto i = 0u; i < threadCount; ++i) {
-            d_threads.emplace_back(executor);
          }
       }
 
@@ -105,6 +98,21 @@ namespace TnTThreadPool {
          lock.lock();
          return lock;
       }
+
+      inline void cleanUp() {
+         auto _ = shutdownImpl();
+      }
+
+      inline void startThreadsImpl(std::uint32_t threadCount) {
+         static std::once_flag s_cleanUpFlag;
+         std::call_once(s_cleanUpFlag, []() { std::atexit(cleanUp); });
+
+         d_execute = true;
+         for (auto i = 0u; i < threadCount; ++i) {
+            d_threads.emplace_back(executor);
+         }
+      }
+
 
       inline auto pauseImpl() {
          Details::d_pause = true;
