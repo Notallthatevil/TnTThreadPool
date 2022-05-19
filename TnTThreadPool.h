@@ -32,7 +32,6 @@
 #include <mutex>
 #include <queue>
 #include <thread>
-#include <tuple>
 #include <vector>
 
 namespace TnTThreadPool {
