@@ -1,13 +1,36 @@
 # TnTThreadPool
 ___
  
-Very simple, yet efficient and easy to use c++17 thread pool header only library. 
+Very simple, yet efficient and easy to use c++20 thread pool header only library. 
 
 #### Using
 To submit any task to the thread pool, include the single header and call TnTThreadPool\::submit, TnTThreadPool\::submitWaitable, or TnTThreadPool\::submitForReturn. 
 
 #### Features
 Allows the caller to submit a simple task without worrying about the lifetime of the thread. Allows the caller to wait for a specific submit call to finish, or even allows submission of tasks for a return value.
+
+#### Notes
+Due to the way variadic templates are forwarded to lambdas, any function taking an lvalue reference will be taking a copy of that value. For example:
+
+```cpp
+#include <TnTThreadPool.h>
+
+void task(int& arg1) {
+    arg1 = 25;
+}
+
+int main() {
+    int my_int = 10;
+
+    TnTThreadPool::submit(task_with_args, my_int);
+
+    std::cout << my_int; // Prints 10 due to forwarding only copies. 
+}
+```
+
+To workaround this limitation, pass my_int as a int* instead of an int&.
+
+
 
 #### Examples
 
@@ -96,3 +119,4 @@ int main() {
     }
 }
 ```
+

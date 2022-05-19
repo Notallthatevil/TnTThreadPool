@@ -32,6 +32,7 @@
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <tuple>
 #include <vector>
 
 namespace TnTThreadPool {
@@ -127,7 +128,7 @@ namespace TnTThreadPool {
       inline void queueJob(Job&& job) {
          std::scoped_lock lock{ Details::d_jobQueueMutex };
          ++d_queuedTasks;
-         Details::d_jobQueue.emplace(job);
+         Details::d_jobQueue.emplace(std::forward<Job>(job));
       }
 
    }   // namespace Details
@@ -138,31 +139,14 @@ namespace TnTThreadPool {
    /// @param job The job to execute.
    /// @param args Arguments to provide to the job.
    template<typename Job, typename... Args>
-   inline void submit(const Job& job, Args&&... args) {
+   inline void submit(Job&& job, Args&&... args) {
       Details::init();
       if constexpr(sizeof...(Args) == 0) {
-         Details::queueJob(job);
+         Details::queueJob(std::forward<Job>(job));
       }
       else {
          // Convert job and args to lambda calling job with the args provided so that it matches the signature of void().
-         submit([&job, &args...] { job(std::forward<Args>(args)...); });
-      }
-   }
-
-   /// @brief Submits a job to the thread pool queue for execution.
-   /// @tparam Job A callable of some type. I.e. lambda, function, or class/struct with operator() overloaded.
-   /// @tparam Args [Optional] Arguments to provide to the job.
-   /// @param job The job to execute.
-   /// @param args Arguments to provide to the job.
-   template<typename Job, typename... Args>
-   inline void submit(Job& job, Args&&... args) {
-      Details::init();
-      if constexpr(sizeof...(Args) == 0) {
-         Details::queueJob(job);
-      }
-      else {
-         // Convert job and args to lambda calling job with the args provided so that it matches the signature of void().
-         submit([&job, &args...] { job(std::forward<Args>(args)...); });
+         submit([job = std::forward<Job>(job), ... args = std::forward<Args>(args)]() mutable { job(args...); });
       }
    }
 
@@ -174,39 +158,13 @@ namespace TnTThreadPool {
    /// @param args Arguments to provide to the job.
    /// @returns An std::future of the return value. To wait for the return value use future.wait() or one of its alternate forms.
    template<typename ReturnValue, typename Job, typename... Args>
-   [[nodiscard]] inline std::future<ReturnValue> submitForReturn(const Job& job, Args&&... args) {
+   [[nodiscard]] inline std::future<ReturnValue> submitForReturn(Job&& job, Args&&... args) {
       std::promise<ReturnValue>* promise = new std::promise<ReturnValue>{};
       std::future<ReturnValue>   future  = promise->get_future();
 
-      auto lambda = [&job, &args..., promise] {
+      auto lambda = [job, ... args = std::forward<Args>(args), promise]() mutable {
          if constexpr(std::is_void_v<ReturnValue>) {
-            job(std::forward<Args>(args)...);
-            promise->set_value();
-         }
-         else {
-            promise->set_value(job(std::forward<Args>(args)...));
-         }
-         delete promise;
-      };
-      submit(lambda);
-      return future;
-   }
-
-   /// @brief Submits a job to the thread pool queue and allows the user to retrieve a return value from the job.
-   /// @tparam ReturnValue The return value of the job.
-   /// @tparam Job A callable of some type. I.e. lambda, function, or class/struct with operator() overloaded.
-   /// @tparam Args [Optional] Arguments to provide to the job.
-   /// @param job The job to execute.
-   /// @param args Arguments to provide to the job.
-   /// @returns An std::future of the return value. To wait for the return value use future.wait() or one of its alternate forms.
-   template<typename ReturnValue, typename Job, typename... Args>
-   [[nodiscard]] inline std::future<ReturnValue> submitForReturn(Job& job, Args&&... args) {
-      std::promise<ReturnValue>* promise = new std::promise<ReturnValue>{};
-      std::future<ReturnValue>   future  = promise->get_future();
-
-      auto lambda = [&job, &args..., promise] {
-         if constexpr(std::is_void_v<ReturnValue>) {
-            job(std::forward<Args>(args)...);
+            job(args...);
             promise->set_value();
          }
          else {
@@ -225,19 +183,8 @@ namespace TnTThreadPool {
    /// @param args Arguments to provide to the job.
    /// @returns An std::future<void>. To wait for the job to finish use future.wait() or one of its alternate forms.
    template<typename Job, typename... Args>
-   [[nodiscard]] inline std::future<void> submitWaitable(const Job& job, Args&&... args) {
-      return submitForReturn<void>(job, std::forward<Args>(args)...);
-   }
-
-   /// @brief Specialization of @see submitForReturn. Uses void as the return value, but unlike @see submit, this function allows that caller to wait for completion.
-   /// @tparam Job A callable of some type. I.e. lambda, function, or class/struct with operator() overloaded.
-   /// @tparam Args [Optional] Arguments to provide to the job.
-   /// @param job The job to execute.
-   /// @param args Arguments to provide to the job.
-   /// @returns An std::future<void>. To wait for the job to finish use future.wait() or one of its alternate forms.
-   template<typename Job, typename... Args>
-   [[nodiscard]] inline std::future<void> submitWaitable(Job& job, Args&&... args) {
-      return submitForReturn<void>(job, std::forward<Args>(args)...);
+   [[nodiscard]] inline std::future<void> submitWaitable(Job&& job, Args&&... args) {
+      return submitForReturn<void>(std::forward<Job>(job), std::forward<Args>(args)...);
    }
 
    /// @brief Causes the caller to wait for all currently queued jobs to complete before continuing.
