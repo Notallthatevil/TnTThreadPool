@@ -608,4 +608,42 @@ namespace Concurrency {
          ASSERT_EQ(expected, accumulator);
       }
    }
+
+   /* For Each*/
+
+   TEST(ForEachTest, NonTrivialForEach) {
+      std::mutex mutex;
+
+      std::array nums{ 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97 };
+      auto       expected = std::accumulate(nums.begin(), nums.end(), 0);
+
+      std::int32_t accumulator{ 0 };
+      TnTThreadPool::forEach(
+          [&mutex, &accumulator](std::int32_t num) {
+             std::scoped_lock lock{ mutex };
+             accumulator += num;
+          },
+          nums);
+
+      ASSERT_EQ(expected, accumulator);
+   }
+
+   /* For Each Indexed */
+   TEST(ForEachIndexedTest, NonTrivialForEach) {
+      std::mutex mutex;
+      std::array nums{ 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97 };
+      auto       expected = std::accumulate(nums.begin(), nums.end(), 0);
+
+      std::int32_t accumulator{ 0 };
+      TnTThreadPool::forEachIndexed<std::int32_t>(
+          [&mutex, &accumulator, &nums](auto index) {
+             std::scoped_lock lock{ mutex };
+             accumulator += nums[index];
+          },
+          0,
+          static_cast<std::int32_t>(nums.size()));
+
+      ASSERT_EQ(expected, accumulator);
+   }
+
 }   // namespace Concurrency

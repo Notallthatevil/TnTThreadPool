@@ -186,6 +186,48 @@ namespace TnTThreadPool {
       return submitForReturn<void>(std::forward<Job>(job), std::forward<Args>(args)...);
    }
 
+   /// @brief Creates a job for each item in a container, passing the item as the only parameter to job.
+   /// @tparam Job A callable of some type. I.e. lambda, function, or class/struct with operator() overloaded.
+   /// @tparam Container A container of some sort, must be support a for each loop.
+   /// @param job The job to execute.
+   /// @param container The container to iterate over.
+   /// @remarks This function blocks until each job created from each container item is complete. Do NOT modify the container during this call. The job's parameter can be a non-const lvalue
+   /// reference to modify each element, however, the owning container should never be modified during this call.
+   template<typename Job, typename Container>
+   inline void forEach(Job&& job, const Container& container) {
+      std::vector<std::future<void>> submittedJobs;
+
+      for(auto& item: container) {
+         submittedJobs.push_back(submitWaitable(job, item));
+      }
+
+      for(const auto& running: submittedJobs) {
+         running.wait();
+      }
+   }
+
+   /// @brief Creates N number of jobs where N is the number of times a number P can be incremented by @paramref increment from @paramref from to @paramref to.
+   /// @tparam Numeric A numeric value to increment from and to.
+   /// @tparam Job A callable of some type. I.e. lambda, function, or class/struct with operator() overloaded.
+   /// @param job The job to execute, taking one parameter of type @see Numeric.
+   /// @param from The starting value to increment from (inclusive).
+   /// @param to The ending value to increment to (exclusive).
+   /// @param increment [Optional; Default=1] The value to increment by for each job.
+   /// @remarks This function blocks until all submitted jobs have completed. Do NOT modify an containers that may be backing the stored data. The job should take one parameter whose type is
+   /// @see Numeric.
+   template<typename Numeric, typename Job>
+   inline void forEachIndexed(Job&& job, Numeric from, Numeric to, Numeric increment = 1) requires(std::is_arithmetic_v<Numeric>) {
+      std::vector<std::future<void>> submittedJobs;
+
+      for(Numeric index = from; index < to; index += increment) {
+         submittedJobs.push_back(submitWaitable(job, index));
+      }
+
+      for(const auto& running: submittedJobs) {
+         running.wait();
+      }
+   }
+
    /// @brief Causes the caller to wait for all currently queued jobs to complete before continuing.
    inline void finishAllJobs() {
       auto _ = Details::finishAllJobsImpl();
