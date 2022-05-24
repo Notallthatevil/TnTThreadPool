@@ -28,6 +28,7 @@ configure_linker(project_options)
 include(cmake/CompilerOptions.cmake)
 set_project_warnings(project_warnings)
 ignore_warnings_in_external(project_options)
+set_standard_compiler_settings(project_options)
 
 # enable doxygen
 include(cmake/Doxygen.cmake)

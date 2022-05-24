@@ -93,5 +93,10 @@ function(ignore_warnings_in_external project_name)
   target_compile_options(${project_name} INTERFACE ${IGNORE_EXTERNAL_PROJECT_WARNINGS})
 endfunction()
 
-
-
+function(set_standard_compiler_settings project_name)
+  if(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(${project_name} INTERFACE -fconcepts)
+  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(PROJECT_WARNINGS ${GCC_WARNINGS})
+  endif()
+endfunction()
