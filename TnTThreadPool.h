@@ -102,12 +102,12 @@ namespace TnTThreadPool {
          auto _ = shutdownImpl();
       }
 
-      inline void startThreadsImpl(std::uint32_t threadCount) {
+      inline void startThreadsImpl(std::size_t threadCount) {
          static std::once_flag s_cleanUpFlag;
          std::call_once(s_cleanUpFlag, []() { std::atexit(cleanUp); });
 
          d_execute = true;
-         for(auto i = 0u; i < threadCount; ++i) {
+         for(std::size_t i = 0; i < threadCount; ++i) {
             d_threads.emplace_back(executor);
          }
       }
