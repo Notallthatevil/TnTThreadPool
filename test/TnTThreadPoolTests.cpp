@@ -646,4 +646,36 @@ namespace Concurrency {
       ASSERT_EQ(expected, accumulator);
    }
 
+   TEST(ShutdownThreadPoolThenQueueJob, ShutdownThreadPoolThenQueueJob) {
+      std::mutex mutex;
+
+      auto        iterations = 50000;
+      std::size_t value{ 0 };
+
+      auto lambda = [&mutex, &value] {
+         std::this_thread::yield();
+
+         std::scoped_lock lock{ mutex };
+         value++;
+      };
+
+      for(auto i = 0; i < iterations; ++i) {
+         TnTThreadPool::submit(lambda);
+      }
+
+      TnTThreadPool::shutdown();
+
+      ASSERT_EQ(iterations, value);
+
+      value = 0;
+
+      for(auto i = 0; i < iterations; ++i) {
+         TnTThreadPool::submit(lambda);
+      }
+
+      TnTThreadPool::finishAllJobs();
+
+      ASSERT_EQ(iterations, value);
+   }
+
 }   // namespace Concurrency

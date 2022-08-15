@@ -46,6 +46,8 @@ namespace TnTThreadPool {
       inline std::atomic_size_t d_runningTasks{ 0 };
       inline std::atomic_size_t d_queuedTasks{ 0 };
 
+      inline std::size_t d_setThreadCount{ std::thread::hardware_concurrency() };
+
       inline std::condition_variable d_cv;
       inline std::once_flag          d_initialized;
 
@@ -105,8 +107,8 @@ namespace TnTThreadPool {
       inline void startThreadsImpl(std::size_t threadCount) {
          static std::once_flag s_cleanUpFlag;
          std::call_once(s_cleanUpFlag, []() { std::atexit(cleanUp); });
-
-         d_execute = true;
+         d_setThreadCount = threadCount;
+         d_execute        = true;
          for(std::size_t i = 0; i < threadCount; ++i) {
             d_threads.emplace_back(executor);
          }
@@ -120,7 +122,7 @@ namespace TnTThreadPool {
       }
 
       inline void init() {
-         std::call_once(d_initialized, []() { startThreadsImpl(std::thread::hardware_concurrency()); });
+         std::call_once(d_initialized, []() { startThreadsImpl(d_setThreadCount); });
       }
 
       template<typename Job>
@@ -128,6 +130,9 @@ namespace TnTThreadPool {
          std::scoped_lock lock{ Details::d_jobQueueMutex };
          ++d_queuedTasks;
          Details::d_jobQueue.emplace(std::forward<Job>(job));
+         if(d_threads.size() == 0) {
+            startThreadsImpl(d_setThreadCount);
+         }
       }
 
    }   // namespace Details
