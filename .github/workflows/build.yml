@@ -25,6 +25,12 @@ jobs:
         - os: macos-latest
 
     steps:
+    - name: Install GCC
+      uses: egor-tensin/setup-gcc@v1
+      with:
+        version: latest
+        platform: x64
+    
     - uses: actions/checkout@v2
 
     - name: Configure CMake
