@@ -64,47 +64,48 @@ namespace Concurrency {
       TrivialTypeNonCopyable& operator=(const TrivialTypeNonCopyable&) = delete;
    };
 
-   /* Initialization */
-   TEST(Initialization, DefaultThreadCount) {
-      ASSERT_EQ(std::thread::hardware_concurrency(), TnTThreadPool::getThreadCount());
-   }
-
    /* Submit_NoArgs */
    TEST(Submit_NoArgs, Lamda) {
+      TnT::TnTThreadPool tp;
+
       auto lambda = [] { ASSERT_NE(MAIN_THREAD_ID, std::this_thread::get_id()); };
-      TnTThreadPool::submit(lambda);
-      TnTThreadPool::finishAllJobs();
+      tp.submit(lambda);
    }
 
    TEST(Submit_NoArgs, Lamda_Inline) {
-      TnTThreadPool::submit([] { ASSERT_NE(MAIN_THREAD_ID, std::this_thread::get_id()); });
-      TnTThreadPool::finishAllJobs();
+      TnT::TnTThreadPool tp;
+
+      tp.submit([] { ASSERT_NE(MAIN_THREAD_ID, std::this_thread::get_id()); });
    }
 
    TEST(Submit_NoArgs, Function) {
-      TnTThreadPool::submit(functionNoArgs);
-      TnTThreadPool::finishAllJobs();
+      TnT::TnTThreadPool tp;
+
+      tp.submit(functionNoArgs);
    }
 
    TEST(Submit_NoArgs, ClassWithCallable) {
+      TnT::TnTThreadPool tp;
+
       CallableNoArgs callable;
-      TnTThreadPool::submit(callable);
-      TnTThreadPool::finishAllJobs();
+      tp.submit(callable);
    }
 
    TEST(Submit_NoArgs, ClassWithCallable_InLine) {
-      TnTThreadPool::submit(CallableNoArgs{});
-      TnTThreadPool::finishAllJobs();
+      TnT::TnTThreadPool tp;
+      tp.submit(CallableNoArgs{});
    }
 
    ///* Submit_WithArgs */
    TEST(Submit_WithArgs, Lambda) {
       std::thread::id arg;
-      const auto      lambdaWithArgs = [](std::thread::id* o) { *o = std::this_thread::get_id(); };
+      {
+         TnT::TnTThreadPool tp;
 
-      TnTThreadPool::submit(lambdaWithArgs, &arg);
+         const auto lambdaWithArgs = [](std::thread::id* o) { *o = std::this_thread::get_id(); };
 
-      TnTThreadPool::finishAllJobs();
+         tp.submit(lambdaWithArgs, &arg);
+      }
       ASSERT_NE(MAIN_THREAD_ID, arg);
       std::thread::id defaultConstructed;
       ASSERT_NE(defaultConstructed, arg);
@@ -113,9 +114,10 @@ namespace Concurrency {
    TEST(Submit_WithArgs, Lambda_InLine) {
       std::thread::id arg;
 
-      TnTThreadPool::submit([](std::thread::id* o) { *o = std::this_thread::get_id(); }, &arg);
-
-      TnTThreadPool::finishAllJobs();
+      {
+         TnT::TnTThreadPool tp;
+         tp.submit([](std::thread::id* o) { *o = std::this_thread::get_id(); }, &arg);
+      }
       ASSERT_NE(MAIN_THREAD_ID, arg);
       std::thread::id defaultConstructed;
       ASSERT_NE(defaultConstructed, arg);
@@ -124,9 +126,10 @@ namespace Concurrency {
    TEST(Submit_WithArgs, Function) {
       std::thread::id arg;
 
-      TnTThreadPool::submit(functionWithArgs, &arg);
-
-      TnTThreadPool::finishAllJobs();
+      {
+         TnT::TnTThreadPool tp;
+         tp.submit(functionWithArgs, &arg);
+      }
       ASSERT_NE(MAIN_THREAD_ID, arg);
       std::thread::id defaultConstructed;
       ASSERT_NE(defaultConstructed, arg);
@@ -135,10 +138,12 @@ namespace Concurrency {
    TEST(Submit_WithArgs, ClassWithCallable) {
       std::thread::id arg;
 
-      CallableWithArgs callable;
-      TnTThreadPool::submit(callable, &arg);
+      {
 
-      TnTThreadPool::finishAllJobs();
+         TnT::TnTThreadPool tp;
+         CallableWithArgs   callable;
+         tp.submit(callable, &arg);
+      }
       ASSERT_NE(MAIN_THREAD_ID, arg);
       std::thread::id defaultConstructed;
       ASSERT_NE(defaultConstructed, arg);
@@ -147,9 +152,10 @@ namespace Concurrency {
    TEST(Submit_WithArgs, ClassWithCallable_InLine) {
       std::thread::id arg;
 
-      TnTThreadPool::submit(CallableWithArgs{}, &arg);
-
-      TnTThreadPool::finishAllJobs();
+      {
+         TnT::TnTThreadPool tp;
+         tp.submit(CallableWithArgs{}, &arg);
+      }
       ASSERT_NE(MAIN_THREAD_ID, arg);
       std::thread::id defaultConstructed;
       ASSERT_NE(defaultConstructed, arg);
@@ -158,18 +164,21 @@ namespace Concurrency {
    TEST(Submit_WithArgs, PassingNonTrivialTypeByValue_Lambda) {
       std::int32_t value  = 123;
       auto         lambda = [&value](std::int32_t i) { ASSERT_EQ(value, i); };
-      TnTThreadPool::submit(lambda, value);
 
-      TnTThreadPool::finishAllJobs();
+      TnT::TnTThreadPool tp;
+      tp.submit(lambda, value);
    }
 
    TEST(Submit_WithArgs, PassingNonTrivialTypeByLValueReference_Lambda) {
       const std::int32_t initialValue = 123;
       std::int32_t       value        = initialValue;
       auto               lambda       = [](std::int32_t* i) { *i = *i * *i; };
-      TnTThreadPool::submit(lambda, &value);
 
-      TnTThreadPool::finishAllJobs();
+      {
+
+         TnT::TnTThreadPool tp;
+         tp.submit(lambda, &value);
+      }
 
       ASSERT_EQ(initialValue * initialValue, value);
    }
@@ -178,9 +187,10 @@ namespace Concurrency {
       TrivialType type{};
       type.i      = 123;
       auto lambda = [&type](TrivialType t) { ASSERT_EQ(type.i, t.i); };
-      TnTThreadPool::submit(lambda, type);
 
-      TnTThreadPool::finishAllJobs();
+      TnT::TnTThreadPool tp;
+
+      tp.submit(lambda, type);
    }
 
    TEST(Submit_WithArgs, PassingTrivialTypeByPointer_Lambda) {
@@ -188,9 +198,11 @@ namespace Concurrency {
       TrivialType        type{};
       type.i      = initialValue;
       auto lambda = [&type](TrivialType* t) { (*t).i = (*t).i * (*t).i; };
-      TnTThreadPool::submit(lambda, &type);
 
-      TnTThreadPool::finishAllJobs();
+      {
+         TnT::TnTThreadPool tp;
+         tp.submit(lambda, &type);
+      }
 
       ASSERT_EQ(initialValue * initialValue, type.i);
    }
@@ -200,9 +212,11 @@ namespace Concurrency {
       TrivialTypeNonCopyable type{};
       type.i      = initialValue;
       auto lambda = [&type](TrivialTypeNonCopyable* t) { (*t).i = (*t).i * (*t).i; };
-      TnTThreadPool::submit(lambda, &type);
 
-      TnTThreadPool::finishAllJobs();
+      {
+         TnT::TnTThreadPool tp;
+         tp.submit(lambda, &type);
+      }
 
       ASSERT_EQ(initialValue * initialValue, type.i);
    }
@@ -211,8 +225,11 @@ namespace Concurrency {
    TEST(SubmitWaitable, Lamda) {
       auto lambda = [] { std::this_thread::sleep_for(DEFAULT_STALL_TIME); };
 
-      auto start    = std::chrono::high_resolution_clock::now();
-      auto waitable = TnTThreadPool::submitWaitable(lambda);
+      auto start = std::chrono::high_resolution_clock::now();
+
+      TnT::TnTThreadPool tp;
+
+      auto waitable = tp.submitWaitable(lambda);
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -223,8 +240,10 @@ namespace Concurrency {
 
    TEST(SubmitWaitable, Lamda_Inline) {
 
-      auto start    = std::chrono::high_resolution_clock::now();
-      auto waitable = TnTThreadPool::submitWaitable([] { std::this_thread::sleep_for(DEFAULT_STALL_TIME); });
+      auto start = std::chrono::high_resolution_clock::now();
+
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitWaitable([] { std::this_thread::sleep_for(DEFAULT_STALL_TIME); });
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -235,8 +254,10 @@ namespace Concurrency {
 
    TEST(SubmitWaitable, Function) {
 
-      auto start    = std::chrono::high_resolution_clock::now();
-      auto waitable = TnTThreadPool::submitWaitable(functionWait);
+      auto start = std::chrono::high_resolution_clock::now();
+
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitWaitable(functionWait);
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -249,8 +270,10 @@ namespace Concurrency {
 
       CallableWait callable;
 
-      auto start    = std::chrono::high_resolution_clock::now();
-      auto waitable = TnTThreadPool::submitWaitable(callable);
+      auto start = std::chrono::high_resolution_clock::now();
+
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitWaitable(callable);
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -260,8 +283,10 @@ namespace Concurrency {
    }
 
    TEST(SubmitWaitable, ClassWithCallable_InLine) {
-      auto start    = std::chrono::high_resolution_clock::now();
-      auto waitable = TnTThreadPool::submitWaitable(CallableWait{});
+      auto start = std::chrono::high_resolution_clock::now();
+
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitWaitable(CallableWait{});
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -272,8 +297,10 @@ namespace Concurrency {
 
    /* SubmitForReturn_NoArgs */
    TEST(SubmitForReturn_NoArgs, Lambda) {
-      auto lambda   = [] { return std::this_thread::get_id(); };
-      auto waitable = TnTThreadPool::submitForReturn<std::thread::id>(lambda);
+      auto lambda = [] { return std::this_thread::get_id(); };
+
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitForReturn<std::thread::id>(lambda);
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -282,7 +309,9 @@ namespace Concurrency {
    }
 
    TEST(SubmitForReturn_NoArgs, Lambda_InLine) {
-      auto waitable = TnTThreadPool::submitForReturn<std::thread::id>([] { return std::this_thread::get_id(); });
+
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitForReturn<std::thread::id>([] { return std::this_thread::get_id(); });
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -291,7 +320,8 @@ namespace Concurrency {
    }
 
    TEST(SubmitForReturn_NoArgs, Function) {
-      auto waitable = TnTThreadPool::submitForReturn<std::thread::id>(functionReturnValue);
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitForReturn<std::thread::id>(functionReturnValue);
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -301,7 +331,9 @@ namespace Concurrency {
 
    TEST(SubmitForReturn_NoArgs, Callable) {
       CallableReturnValue callable;
-      auto                waitable = TnTThreadPool::submitForReturn<std::thread::id>(callable);
+
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitForReturn<std::thread::id>(callable);
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -310,7 +342,9 @@ namespace Concurrency {
    }
 
    TEST(SubmitForReturn_NoArgs, Callable_InLine) {
-      auto waitable = TnTThreadPool::submitForReturn<std::thread::id>(CallableReturnValue{});
+
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitForReturn<std::thread::id>(CallableReturnValue{});
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -320,9 +354,11 @@ namespace Concurrency {
 
    /* SubmitForReturn_WithArgs */
    TEST(SubmitForReturn_WithArgs, Lambda) {
-      int  value    = 125;
-      auto lambda   = [](int x) { return x * x; };
-      auto waitable = TnTThreadPool::submitForReturn<int>(lambda, value);
+      int  value  = 125;
+      auto lambda = [](int x) { return x * x; };
+
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitForReturn<int>(lambda, value);
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -331,8 +367,10 @@ namespace Concurrency {
    }
 
    TEST(SubmitForReturn_WithArgs, Lambda_InLine) {
-      int  value    = 125;
-      auto waitable = TnTThreadPool::submitForReturn<int>([](int x) { return x * x; }, value);
+      int value = 125;
+
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitForReturn<int>([](int x) { return x * x; }, value);
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -341,8 +379,10 @@ namespace Concurrency {
    }
 
    TEST(SubmitForReturn_WithArgs, Function) {
-      int  value    = 125;
-      auto waitable = TnTThreadPool::submitForReturn<int>(functionReturnValueWithArgs, value);
+      int value = 125;
+
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitForReturn<int>(functionReturnValueWithArgs, value);
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -353,7 +393,9 @@ namespace Concurrency {
    TEST(SubmitForReturn_WithArgs, Callable) {
       int                         value = 125;
       CallableReturnValueWithArgs callable;
-      auto                        waitable = TnTThreadPool::submitForReturn<int>(callable, value);
+
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitForReturn<int>(callable, value);
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -362,8 +404,10 @@ namespace Concurrency {
    }
 
    TEST(SubmitForReturn_WithArgs, Callable_InLine) {
-      int  value    = 125;
-      auto waitable = TnTThreadPool::submitForReturn<int>(CallableReturnValueWithArgs{}, value);
+      int value = 125;
+
+      TnT::TnTThreadPool tp;
+      auto               waitable = tp.submitForReturn<int>(CallableReturnValueWithArgs{}, value);
 
       auto result = waitable.wait_for(DEFAULT_STALL_TIME * 5);
 
@@ -375,17 +419,19 @@ namespace Concurrency {
    TEST(Pause, PauseAndResume) {
       auto value  = 1;
       auto lambda = [](int i) { return i * i; };
-      TnTThreadPool::finishAllJobs();
-      auto waitable1 = TnTThreadPool::submitWaitable(lambda, value);
+
+      TnT::TnTThreadPool tp;
+
+      auto waitable1 = tp.submitWaitable(lambda, value);
       auto status1   = waitable1.wait_for(DEFAULT_STALL_TIME * 5);
 
       ASSERT_NE(std::future_status::timeout, status1);
 
-      TnTThreadPool::pause();
+      tp.pause();
       auto value2        = 2;
-      auto waitable2     = TnTThreadPool::submitWaitable(lambda, value2);
+      auto waitable2     = tp.submitWaitable(lambda, value2);
       auto statusTimeout = waitable2.wait_for(DEFAULT_STALL_TIME * 5);
-      TnTThreadPool::resume();
+      tp.resume();
       auto statusNoTimeout = waitable2.wait_for(DEFAULT_STALL_TIME * 5);
 
       ASSERT_EQ(std::future_status::timeout, statusTimeout) << "Was apparently ready?";
@@ -401,28 +447,30 @@ namespace Concurrency {
          counter++;
       };
 
-      TnTThreadPool::reset(1);
+      TnT::TnTThreadPool tp;
+
+      tp.reset(1);
 
       auto start = std::chrono::high_resolution_clock::now();
 
       for(auto i = 0; i < iterations; ++i) {
-         TnTThreadPool::submit(lambda);
+         tp.submit(lambda);
       }
-      TnTThreadPool::finishAllJobs();
+      tp.finishAllJobs();
 
       auto end = std::chrono::high_resolution_clock::now();
       ASSERT_EQ(iterations, counter);
       ASSERT_LT(DEFAULT_STALL_TIME * iterations, end - start);
       counter = 0;
 
-      TnTThreadPool::reset();
+      tp.reset();
 
       start = std::chrono::high_resolution_clock::now();
 
       for(auto i = 0; i < iterations; ++i) {
-         TnTThreadPool::submit(lambda);
+         tp.submit(lambda);
       }
-      TnTThreadPool::finishAllJobs();
+      tp.finishAllJobs();
 
       end = std::chrono::high_resolution_clock::now();
 
@@ -439,28 +487,29 @@ namespace Concurrency {
          counter++;
       };
 
-      TnTThreadPool::setThreadCount(1);
+      TnT::TnTThreadPool tp;
+      tp.setThreadCount(1);
 
       auto start = std::chrono::high_resolution_clock::now();
 
       for(auto i = 0; i < iterations; ++i) {
-         TnTThreadPool::submit(lambda);
+         tp.submit(lambda);
       }
-      TnTThreadPool::finishAllJobs();
+      tp.finishAllJobs();
 
       auto end = std::chrono::high_resolution_clock::now();
       ASSERT_EQ(iterations, counter);
       ASSERT_LT(DEFAULT_STALL_TIME * iterations, end - start);
       counter = 0;
 
-      TnTThreadPool::reset();
+      tp.reset();
 
       start = std::chrono::high_resolution_clock::now();
 
       for(auto i = 0; i < iterations; ++i) {
-         TnTThreadPool::submit(lambda);
+         tp.submit(lambda);
       }
-      TnTThreadPool::finishAllJobs();
+      tp.finishAllJobs();
 
       end = std::chrono::high_resolution_clock::now();
 
@@ -470,7 +519,8 @@ namespace Concurrency {
 
    /* Stress Tests */
    TEST(StressTest, AddLargeNumberOfItems) {
-      std::mutex mutex;
+      std::mutex         mutex;
+      TnT::TnTThreadPool tp;
 
       auto        iterations = 50000;
       std::size_t value{ 0 };
@@ -483,10 +533,10 @@ namespace Concurrency {
       };
 
       for(auto i = 0; i < iterations; ++i) {
-         TnTThreadPool::submit(lambda);
+         tp.submit(lambda);
       }
 
-      TnTThreadPool::finishAllJobs();
+      tp.finishAllJobs();
 
       ASSERT_EQ(iterations, value);
    }
@@ -494,6 +544,8 @@ namespace Concurrency {
    TEST(StressTest, AddLargeNumberOfItems_WithPause) {
       std::mutex mutex;
 
+      TnT::TnTThreadPool tp;
+
       auto        iterations = 50000;
       std::size_t value{ 0 };
 
@@ -505,14 +557,14 @@ namespace Concurrency {
       };
 
       for(auto i = 0; i < iterations; ++i) {
-         TnTThreadPool::submit(lambda);
+         tp.submit(lambda);
       }
 
-      TnTThreadPool::pause();
+      tp.pause();
       std::this_thread::sleep_for(DEFAULT_STALL_TIME * 5);
-      TnTThreadPool::resume();
+      tp.resume();
 
-      TnTThreadPool::finishAllJobs();
+      tp.finishAllJobs();
 
       ASSERT_EQ(iterations, value);
    }
@@ -521,6 +573,8 @@ namespace Concurrency {
       std::mutex mutex;
       auto       iterations  = 5000;
       auto       strLoopSize = 100;
+
+      TnT::TnTThreadPool tp;
 
       std::vector<std::string> vec;
 
@@ -537,10 +591,10 @@ namespace Concurrency {
       };
 
       for(auto i = 0; i < iterations; ++i) {
-         TnTThreadPool::submit(lambda);
+         tp.submit(lambda);
       }
 
-      TnTThreadPool::finishAllJobs();
+      tp.finishAllJobs();
 
       ASSERT_EQ(iterations, vec.size());
 
@@ -560,6 +614,8 @@ namespace Concurrency {
 
       auto iterations = 500;
 
+      TnT::TnTThreadPool tp;
+
       std::array nums{ 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97 };
       auto       expected = std::accumulate(nums.begin(), nums.end(), 0);
 
@@ -573,10 +629,10 @@ namespace Concurrency {
          };
 
          for(auto num: nums) {
-            TnTThreadPool::submit(lambda, num);
+            tp.submit(lambda, num);
          }
 
-         TnTThreadPool::finishAllJobs();
+         tp.finishAllJobs();
 
          ASSERT_EQ(expected, accumulator);
       }
@@ -599,11 +655,13 @@ namespace Concurrency {
             accumulator += num;
          };
 
+         TnT::TnTThreadPool tp;
+
          for(auto num: nums) {
-            TnTThreadPool::submit(lambda, num);
+            tp.submit(lambda, num);
          }
 
-         TnTThreadPool::finishAllJobs();
+         tp.finishAllJobs();
 
          ASSERT_EQ(expected, accumulator);
       }
@@ -617,8 +675,10 @@ namespace Concurrency {
       std::array nums{ 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97 };
       auto       expected = std::accumulate(nums.begin(), nums.end(), 0);
 
+      TnT::TnTThreadPool tp;
+
       std::int32_t accumulator{ 0 };
-      TnTThreadPool::forEach(
+      tp.forEach(
           [&mutex, &accumulator](std::int32_t num) {
              std::scoped_lock lock{ mutex };
              accumulator += num;
@@ -634,8 +694,10 @@ namespace Concurrency {
       std::array nums{ 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97 };
       auto       expected = std::accumulate(nums.begin(), nums.end(), 0);
 
+      TnT::TnTThreadPool tp;
+
       std::int32_t accumulator{ 0 };
-      TnTThreadPool::forEachIndexed<std::int32_t>(
+      tp.forEachIndexed<std::int32_t>(
           [&mutex, &accumulator, &nums](auto index) {
              std::scoped_lock lock{ mutex };
              accumulator += nums[index];
@@ -646,7 +708,7 @@ namespace Concurrency {
       ASSERT_EQ(expected, accumulator);
    }
 
-   TEST(ShutdownThreadPoolThenQueueJob, ShutdownThreadPoolThenQueueJob) {
+   TEST(ShutdownThreadPoolThenQueueJob, ShutdownThreadPoolThenQueueJobWithoutReset) {
       std::mutex mutex;
 
       auto        iterations = 50000;
@@ -659,21 +721,61 @@ namespace Concurrency {
          value++;
       };
 
+      TnT::TnTThreadPool tp;
+
       for(auto i = 0; i < iterations; ++i) {
-         TnTThreadPool::submit(lambda);
+         tp.submit(lambda);
       }
 
-      TnTThreadPool::shutdown();
+      tp.shutdown();
 
       ASSERT_EQ(iterations, value);
 
       value = 0;
 
+      auto statement = [&]() {
+         for(auto i = 0; i < iterations; ++i) {
+            tp.submit(lambda);
+         }
+
+         tp.finishAllJobs();
+
+         ASSERT_EQ(iterations, value);
+      };
+      ASSERT_THROW(statement(), std::runtime_error);
+   }
+
+   TEST(ShutdownThreadPoolThenQueueJob, ShutdownThreadPoolThenQueueJobWithReset) {
+      std::mutex mutex;
+
+      auto        iterations = 50000;
+      std::size_t value{ 0 };
+
+      auto lambda = [&mutex, &value] {
+         std::this_thread::yield();
+
+         std::scoped_lock lock{ mutex };
+         value++;
+      };
+
+      TnT::TnTThreadPool tp;
+
       for(auto i = 0; i < iterations; ++i) {
-         TnTThreadPool::submit(lambda);
+         tp.submit(lambda);
       }
 
-      TnTThreadPool::finishAllJobs();
+      tp.shutdown();
+
+      ASSERT_EQ(iterations, value);
+
+      value = 0;
+
+      tp.reset();
+      for(auto i = 0; i < iterations; ++i) {
+         tp.submit(lambda);
+      }
+
+      tp.finishAllJobs();
 
       ASSERT_EQ(iterations, value);
    }
