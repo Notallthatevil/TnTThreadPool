@@ -21,20 +21,12 @@ jobs:
         os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
         include:
         - os: ubuntu-latest
+          compiler: gcc
+          gcc: 10
         - os: windows-latest
         - os: macos-latest
 
     steps:
-    - name:  Install
-      run:   |
-          if [ "$RUNNER_OS" == "Linux" ]; then
-              sudo apt update
-              sudo apt install gcc-10 g++-10
-              CC=gcc-10
-              CXX=g++-10
-          fi
-      shell: bash
-    
     - uses: actions/checkout@v2
 
     - name: Configure CMake
