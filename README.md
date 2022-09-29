@@ -25,7 +25,9 @@ void task(int& arg1) {
 int main() {
     int my_int = 10;
 
-    TnTThreadPool::submit(task_with_args, my_int);
+    TnT::TnTThreadPool tp;
+   
+    tp.submit(task_with_args, my_int);
 
     std::cout << my_int; // Prints 10 due to forwarding only copies. 
 }
@@ -53,9 +55,11 @@ void task_with_args(const char * arg1, int arg2) {
 int main() {
     const char *my_string = "This is string.";
     int my_int = 10;
-
-    TnTThreadPool::submit(task);
-    TnTThreadPool::submit(task_with_args, my_string, my_int);
+    
+    TnT::TnTThreadPool tp;
+    
+    tp.submit(task);
+    tp.submit(task_with_args, my_string, my_int);
 }
 ```
 
@@ -79,8 +83,10 @@ int main() {
     const char *my_string = "This is string.";
     int my_int = 10;
 
-    auto wait_1 = TnTThreadPool::submitWaitable(task);
-    auto wait_2 = TnTThreadPool::submitWaitable(task_with_args, my_string, my_int);
+    TnT::TnTThreadPool tp;
+
+    auto wait_1 = tp.submitWaitable(task);
+    auto wait_2 = tp.submitWaitable(task_with_args, my_string, my_int);
 
     wait_1.wait(); // Pauses this threads execution until wait_1 has finished execution.
     wait_2.wait_for(5000ms); // Pauses this threads execution until wait_2 has finished or the timeout period of 5000ms has elapsed.
@@ -107,9 +113,11 @@ int task_with_args(const char * arg1, int arg2) {
 int main() {   
     const char *my_string = "This is string.";
     int my_int = 10;
+    
+    TnT::TnTThreadPool tp;
 
-    auto wait_1 = TnTThreadPool::submitForReturn<int>(task);
-    auto wait_2 = TnTThreadPool::submitForReturn<int>(task_with_args, my_string, my_int);
+    auto wait_1 = tp.submitForReturn<int>(task);
+    auto wait_2 = tp.submitForReturn<int>(task_with_args, my_string, my_int);
 
     wait_1.wait(); // Pauses this threads execution until wait_1 has finished execution.
     wait_2.wait_for(5000ms); // Pauses this threads execution until wait_2 has finished or the timeout period of 5000ms has elapsed.
