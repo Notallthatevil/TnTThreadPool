@@ -29,7 +29,9 @@ jobs:
       run:   |
           if [ "$RUNNER_OS" == "Linux" ]; then
               sudo apt update
-              supo apt install gcc-10 g++-10
+              sudo apt install gcc-10 g++-10
+              CC=gcc-10
+              CXX=g++-10
           fi
       shell: bash
     
