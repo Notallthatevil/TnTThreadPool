@@ -1,3 +1,6 @@
+[![Build](https://github.com/Notallthatevil/TnTThreadPool/actions/workflows/build.yml/badge.svg)](https://github.com/Notallthatevil/TnTThreadPool/actions/workflows/build.yml)
+___
+
 # TnTThreadPool
 ___
  
