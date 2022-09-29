@@ -33,6 +33,7 @@
 #include <queue>
 #include <thread>
 #include <vector>
+#include <functional>
 
 namespace TnT {
 
@@ -184,10 +185,10 @@ namespace TnT {
 
      private:
       inline void init() {
+         m_execute = true;
          for(std::size_t i = 0; i < m_threadCount; ++i) {
             m_threads.emplace_back(std::bind(&TnTThreadPool::executor, this));
          }
-         m_execute = true;
       }
 
       inline void executor() {
