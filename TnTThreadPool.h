@@ -167,14 +167,16 @@ namespace TnT {
             shutdown();
             return;
          }
-         m_threadCount = newThreadCount;
-         auto lock = pauseImpl();
-         m_execute = false;
-         lock.unlock();
-         joinThreadsImpl();
-         lock.lock();
-         init();
-         resume();
+         else { 
+            m_threadCount = newThreadCount;
+            auto lock = pauseImpl();
+            m_execute = false;
+            lock.unlock();
+            joinThreadsImpl();
+            lock.lock();
+            init();
+            resume();
+         }
       }
 
       /// @brief Returns the number of threads in the pool.
